@@ -153,7 +153,7 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-primary/20 blur-3xl pointer-events-none" />
 
               <div className="p-8 relative max-h-[85vh] overflow-y-auto">
-                <button onClick={onClose} data-testid="button-close-modal" className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <button onClick={onClose} data-testid="button-close-modal" aria-label="Cerrar" className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
                   <X size={16} />
                 </button>
 
@@ -238,6 +238,7 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
                               <input
                                 data-testid="input-nombre"
                                 type="text"
+                                aria-label={role === "empresa" ? "Nombre de la empresa" : "Nombre completo"}
                                 placeholder={role === "empresa" ? "Nombre de la empresa" : "Nombre completo"}
                                 value={form.nombre}
                                 onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
@@ -249,6 +250,7 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
                               <input
                                 data-testid="input-email"
                                 type="email"
+                                aria-label="Correo electrónico"
                                 placeholder="Correo electrónico"
                                 value={form.email}
                                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -260,12 +262,13 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
                               <input
                                 data-testid="input-password"
                                 type={showPassword ? "text" : "password"}
+                                aria-label="Contraseña"
                                 placeholder="Contraseña (mínimo 6 caracteres)"
                                 value={form.password}
                                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                                 className="w-full h-12 pl-10 pr-12 rounded-xl bg-white/5 border border-white/10 focus:border-primary/60 focus:bg-primary/5 outline-none text-sm text-white placeholder:text-white/30 transition-all"
                               />
-                              <button type="button" onClick={() => setShowPassword((s) => !s)} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
+                              <button type="button" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors">
                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                               </button>
                             </div>
@@ -293,6 +296,7 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
                           <input
                             data-testid="input-login-email"
                             type="email"
+                            aria-label="Correo electrónico"
                             placeholder="Correo electrónico"
                             value={loginForm.email}
                             onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))}
@@ -304,6 +308,7 @@ function AuthModal({ isOpen, onClose, defaultTab = "registro", defaultRole }: { 
                           <input
                             data-testid="input-login-password"
                             type={showPassword ? "text" : "password"}
+                            aria-label="Contraseña"
                             placeholder="Contraseña"
                             value={loginForm.password}
                             onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))}

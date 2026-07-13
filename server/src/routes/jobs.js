@@ -1,11 +1,8 @@
 import { Router } from "express";
 import crypto from "crypto";
-import path from "path";
-import fs from "fs";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { computeMatch, suggestCourses } from "../utils/matching.js";
-import { uploadsDir } from "../utils/cvStorage.js";
 
 export const jobsRouter = Router();
 
@@ -142,8 +139,11 @@ jobsRouter.patch("/:id", requireAuth, requireRole("empresa"), async (req, res) =
   res.json({ job });
 });
 
-// Eliminar una oferta por completo (solo la empresa dueña). Borra en cascada
-// las postulaciones asociadas y sus archivos de CV para no dejar datos huérfanos.
+// Eliminar una oferta (solo la empresa dueña). La oferta deja de ser visible y
+// desaparece del panel de la empresa. Las postulaciones NO se borran: se
+// conservan marcadas como "oferta eliminada" para que el egresado siga viendo
+// el registro (con el título de la oferta) en "Mis postulaciones" en vez de que
+// simplemente desaparezca sin explicación.
 jobsRouter.delete("/:id", requireAuth, requireRole("empresa"), async (req, res) => {
   await db.read();
   const job = db.data.jobs.find((j) => j.id === req.params.id);
@@ -152,20 +152,23 @@ jobsRouter.delete("/:id", requireAuth, requireRole("empresa"), async (req, res) 
     return res.status(403).json({ error: "No puedes eliminar ofertas de otra empresa." });
   }
 
-  // Borra archivos de CV de cada postulación a esta oferta.
+  const company = db.data.users.find((u) => u.id === job.companyId);
+  const companyName = company?.profile?.companyName || company?.name || "Empresa";
+
+  // Marca las postulaciones asociadas como "oferta eliminada", guardando una
+  // instantánea del título/empresa para poder mostrarla luego al egresado.
   const relatedApplications = db.data.applications.filter((a) => a.jobId === job.id);
   for (const app of relatedApplications) {
-    if (app.cvFileName) {
-      fs.unlink(path.join(uploadsDir, app.cvFileName), () => {});
-    }
+    app.jobDeleted = true;
+    app.jobTitleSnapshot = job.title;
+    app.companyNameSnapshot = companyName;
   }
 
-  const removedApplications = relatedApplications.length;
-  db.data.applications = db.data.applications.filter((a) => a.jobId !== job.id);
+  const affectedApplications = relatedApplications.length;
   db.data.jobs = db.data.jobs.filter((j) => j.id !== job.id);
   await db.write();
 
-  res.json({ ok: true, removedApplications });
+  res.json({ ok: true, affectedApplications });
 });
 
 // Postulantes de una oferta, con % de match y cursos sugeridos por candidato (solo la empresa dueña)

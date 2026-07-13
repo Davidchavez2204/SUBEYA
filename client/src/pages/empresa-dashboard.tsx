@@ -36,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth, EmpresaProfile } from "@/lib/auth-context";
-import { api, cvDownloadHref } from "@/lib/api";
+import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { MatchRing } from "@/components/match-ring";
 import { StatCard } from "@/components/stat-card";
@@ -218,10 +218,13 @@ export default function EmpresaDashboard() {
       const data = await api.deleteJob(jobToDelete.id);
       // Si el diálogo de postulantes estaba abierto sobre esta oferta, ciérralo.
       if (applicantsJob?.id === jobToDelete.id) setApplicantsJob(null);
-      const removed = data?.removedApplications ?? 0;
+      const affected = data?.affectedApplications ?? 0;
       toast({
         title: "Oferta eliminada",
-        description: removed > 0 ? `Se eliminó la oferta y ${removed} postulación(es) asociada(s).` : "La oferta ya no es visible para los egresados.",
+        description:
+          affected > 0
+            ? `La oferta ya no es visible. ${affected} postulante(s) verán la oferta marcada como "eliminada".`
+            : "La oferta ya no es visible para los egresados.",
       });
       setJobToDelete(null);
       await loadJobs();
@@ -229,6 +232,14 @@ export default function EmpresaDashboard() {
       toast({ title: err instanceof Error ? err.message : "No se pudo eliminar la oferta", variant: "destructive" });
     } finally {
       setDeletingJob(false);
+    }
+  };
+
+  const handleDownloadCv = async (applicationId: string, fallbackName?: string) => {
+    try {
+      await api.downloadApplicationCv(applicationId, fallbackName);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : "No se pudo descargar el CV", variant: "destructive" });
     }
   };
 
@@ -543,15 +554,14 @@ export default function EmpresaDashboard() {
                       <div className="mb-4">
                         <ExperienceFit requiredYears={a.requiredYears} candidateYears={a.candidateYears} meetsExperience={a.meetsExperience} />
                       </div>
-                      <a
-                        href={cvDownloadHref(a.applicationId)}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadCv(a.applicationId, a.cvFileName)}
                         className="inline-flex items-center gap-2 text-sm text-primary hover:underline mb-4"
                         data-testid={`link-cv-${a.applicationId}`}
                       >
                         <Download size={14} /> Descargar CV ({a.cvFileName})
-                      </a>
+                      </button>
 
                       {a.suggestedCourses.length > 0 && (
                         <div className="border-t border-white/10 pt-4">
@@ -588,8 +598,8 @@ export default function EmpresaDashboard() {
             <AlertDialogDescription>
               Vas a eliminar <span className="font-semibold text-foreground">"{jobToDelete?.title}"</span>.
               {jobToDelete && jobToDelete.applicantsCount > 0
-                ? ` Esta acción también eliminará las ${jobToDelete.applicantsCount} postulación(es) recibidas y no se puede deshacer.`
-                : " Esta acción no se puede deshacer."}
+                ? ` La oferta dejará de estar visible y sus ${jobToDelete.applicantsCount} postulante(s) la verán marcada como "eliminada". Esta acción no se puede deshacer.`
+                : " La oferta dejará de estar visible. Esta acción no se puede deshacer."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

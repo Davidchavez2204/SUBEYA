@@ -116,6 +116,8 @@ applicationsRouter.get("/mine", requireAuth, requireRole("egresado"), async (req
       cvFileName: app.cvOriginalName,
       job: job
         ? { id: job.id, title: job.title, companyName: company?.profile?.companyName || company?.name, status: job.status }
+        : app.jobDeleted
+        ? { id: null, title: app.jobTitleSnapshot || "Oferta eliminada", companyName: app.companyNameSnapshot || "", status: "eliminada" }
         : null,
       matchScore: match.score,
       matchedTech: match.matchedTech,

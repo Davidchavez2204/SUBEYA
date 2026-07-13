@@ -3,15 +3,29 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "../db.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
+import { rateLimit } from "../middleware/rateLimit.js";
 
 export const authRouter = Router();
+
+// Limita intentos de inicio de sesión y registro por IP para mitigar fuerza
+// bruta. Valores holgados para no molestar en un uso normal (feria).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo de nuevo.",
+});
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: "Demasiadas cuentas creadas desde esta red. Espera un momento e inténtalo de nuevo.",
+});
 
 function publicUser(user) {
   const { passwordHash, ...rest } = user;
   return rest;
 }
 
-authRouter.post("/register", async (req, res) => {
+authRouter.post("/register", registerLimiter, async (req, res) => {
   const { email, password, name, role, companyName } = req.body || {};
 
   if (!email || !password || !name || !role) {
@@ -51,7 +65,7 @@ authRouter.post("/register", async (req, res) => {
   res.status(201).json({ token, user: publicUser(user) });
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: "Correo y contraseña son obligatorios." });

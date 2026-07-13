@@ -20,6 +20,15 @@ export const TECH_SKILLS = [
   "testing", "selenium", "cypress", "jest", "qa",
   "android", "ios", "flutter", "unity",
   "graphql", "rest api", "microservicios", "firebase", "supabase",
+  // Ampliación con tecnologías frecuentes en egresados de la región
+  "nest.js", "nestjs", "svelte", "redux", "jquery", "webpack", "vite",
+  ".net core", "asp.net", "entity framework", "sql server", "mariadb",
+  "cassandra", "elasticsearch", "kafka", "rabbitmq", "nginx", "apache",
+  "github actions", "gitlab ci", "ansible", "postman", "swagger", "jwt",
+  "oauth", "websockets", "power apps", "power automate", "sharepoint",
+  "google analytics", "seo", "canva", "adobe xd", "after effects",
+  "premiere", "autocad", "solidworks", "revit", "arduino", "iot",
+  "looker", "google data studio", "airflow", "snowflake", "databricks",
 ];
 
 export const SOFT_SKILLS = [

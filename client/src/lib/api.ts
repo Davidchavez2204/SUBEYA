@@ -107,7 +107,50 @@ export const api = {
 
   myApplications: () => request("/applications/mine"),
 
+  downloadApplicationCv: (applicationId: string, fallbackName?: string) =>
+    downloadFile(`/applications/${applicationId}/cv`, fallbackName),
+
+  downloadProfileCv: (fallbackName?: string) => downloadFile(`/profile/egresado/cv`, fallbackName),
+
 };
+
+/**
+ * Descarga un archivo protegido usando la cabecera Authorization (en vez de
+ * pasar el token por la URL con ?token=, que puede quedar en logs/historial).
+ * Trae el archivo como blob y dispara la descarga en el navegador.
+ */
+async function downloadFile(path: string, fallbackName = "archivo") {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    let message = "No se pudo descargar el archivo.";
+    try {
+      const data = await res.json();
+      message = data?.error || message;
+    } catch {
+      // respuesta no-JSON: usamos el mensaje por defecto
+    }
+    throw new ApiError(message, res.status);
+  }
+
+  // Intenta obtener el nombre real desde la cabecera Content-Disposition.
+  let filename = fallbackName;
+  const disposition = res.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+  if (match) filename = decodeURIComponent(match[1].replace(/"/g, "").trim());
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export function cvDownloadHref(applicationId: string) {
   const token = getToken();

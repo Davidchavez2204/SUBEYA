@@ -40,7 +40,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { useAuth, EgresadoProfile, WorkExperience } from "@/lib/auth-context";
-import { api, profileCvDownloadHref } from "@/lib/api";
+import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { MatchRing } from "@/components/match-ring";
 import { StatCard } from "@/components/stat-card";
@@ -80,7 +80,7 @@ type Application = {
   status: string;
   appliedAt: string;
   cvFileName: string;
-  job: { id: string; title: string; companyName: string; status: string } | null;
+  job: { id: string | null; title: string; companyName: string; status: string } | null;
   matchScore: number;
   matchedTech: string[];
   matchedSoft: string[];
@@ -484,6 +484,9 @@ export default function EgresadoDashboard() {
                           <div>
                             <CardTitle className="text-lg">{app.job?.title || "Oferta eliminada"}</CardTitle>
                             <p className="text-primary text-sm font-medium mt-1">{app.job?.companyName}</p>
+                            {app.job?.status === "eliminada" && (
+                              <p className="text-xs text-amber-300/80 mt-1">La empresa eliminó esta oferta. Puedes retirar tu postulación para quitarla de la lista.</p>
+                            )}
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
@@ -594,15 +597,20 @@ export default function EgresadoDashboard() {
                 </div>
 
                 {profile?.cvFileName && (
-                  <a
-                    href={profileCvDownloadHref()}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await api.downloadProfileCv(profile.cvOriginalName || "cv");
+                      } catch (err) {
+                        toast({ title: err instanceof Error ? err.message : "No se pudo descargar el CV", variant: "destructive" });
+                      }
+                    }}
                     className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
                     data-testid="link-profile-cv"
                   >
-                    <FileText size={14} /> Ver el CV guardado en tu perfil ({profile.cvOriginalName})
-                  </a>
+                    <FileText size={14} /> Descargar el CV guardado en tu perfil ({profile.cvOriginalName})
+                  </button>
                 )}
               </CardContent>
             </Card>
