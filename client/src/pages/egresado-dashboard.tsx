@@ -489,7 +489,10 @@ export default function EgresadoDashboard() {
     try {
       await api.updateEgresadoProfile({ techSkills, softSkills, bio, career, yearsOfExperience, experiences });
       await refreshUser();
-      toast({ title: "Perfil actualizado", description: "Tu % de match se recalculará en cada oferta." });
+      // Recargamos las ofertas para que el % de match se actualice de inmediato
+      // con las habilidades recién guardadas (sin esperar al refresco automático).
+      await loadJobs();
+      toast({ title: "Perfil actualizado", description: "Tu % de match se recalculó en cada oferta." });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "No se pudo guardar el perfil", variant: "destructive" });
     } finally {
