@@ -177,6 +177,19 @@ export default function EmpresaDashboard() {
     loadJobs();
   }, []);
 
+  // Auto-actualización: refresca en silencio las ofertas (conteo de postulantes)
+  // y, si está abierta la lista de postulantes, sus postulantes/estados cada 15s.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      api.myJobs().then((d) => setJobs(d.jobs)).catch(() => {});
+      if (applicantsJob) {
+        api.jobApplicants(applicantsJob.id).then((d) => setApplicants(d.applicants)).catch(() => {});
+      }
+    }, 15000);
+    return () => clearInterval(id);
+  }, [applicantsJob]);
+
   useEffect(() => {
     setCompanyName(profile?.companyName || "");
     setSector(profile?.sector || "");
@@ -285,7 +298,14 @@ export default function EmpresaDashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-white/10 sticky top-0 z-40 bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-extrabold tracking-tighter text-gradient">SUBEYA</span>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="text-xl font-extrabold tracking-tighter text-gradient cursor-pointer bg-transparent border-0 p-0"
+            aria-label="Ir al inicio del panel"
+          >
+            SUBEYA
+          </button>
           <div className="flex items-center gap-4">
             <div className="text-sm text-right hidden sm:block">
               <div className="font-semibold">{profile?.companyName || user?.name}</div>
@@ -314,8 +334,8 @@ export default function EmpresaDashboard() {
         <Tabs defaultValue="ofertas">
           <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
             <TabsList>
-              <TabsTrigger value="ofertas" data-testid="tab-ofertas">Mis ofertas</TabsTrigger>
               <TabsTrigger value="perfil" data-testid="tab-perfil">Perfil de empresa</TabsTrigger>
+              <TabsTrigger value="ofertas" data-testid="tab-ofertas">Mis ofertas</TabsTrigger>
             </TabsList>
             <Button onClick={() => setCreateOpen(true)} data-testid="button-open-create-job" className="bg-gradient-to-r from-primary to-secondary">
               <Plus size={16} className="mr-2" /> Publicar oferta

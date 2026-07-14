@@ -5,9 +5,20 @@ import fs from "fs";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { computeMatch, suggestCourses } from "../utils/matching.js";
-import { uploadCv, uploadsDir } from "../utils/cvStorage.js";
+import { uploadCv, uploadsDir, extractTextFromCv } from "../utils/cvStorage.js";
+import { extractSkillsFromText } from "../utils/skillsDictionary.js";
+import { extractExperienceFromText } from "../utils/experienceExtractor.js";
 
 export const applicationsRouter = Router();
+
+// Une dos listas de habilidades sin duplicar (comparación case-insensitive).
+function mergeUnique(existing, incoming) {
+  const result = [...(existing || [])];
+  for (const item of incoming || []) {
+    if (!result.some((r) => r.toLowerCase() === item.toLowerCase())) result.push(item);
+  }
+  return result;
+}
 
 // Postular a una oferta. Admite dos modos:
 //  1) Subir un CV nuevo específico para esta postulación (campo "cv").
@@ -64,6 +75,35 @@ applicationsRouter.post(
       return res.status(400).json({ error: "Debes adjuntar tu CV en PDF o Word, o usar el CV guardado en tu perfil." });
     }
 
+    // Si el egresado postuló subiendo un CV y todavía NO tenía uno guardado en su
+    // perfil, lo guardamos ahí y autocompletamos sus habilidades/experiencia. Así,
+    // al postular desde la web pública por primera vez, su perfil queda completo
+    // sin tener que volver a subir el CV.
+    if (req.file && egresado && !egresado.profile.cvFileName) {
+      try {
+        const ext = path.extname(req.file.filename);
+        const profileCopy = `${crypto.randomUUID()}${ext}`;
+        fs.copyFileSync(path.join(uploadsDir, req.file.filename), path.join(uploadsDir, profileCopy));
+
+        const text = await extractTextFromCv(req.file.path, req.file.mimetype);
+        const extractedSkills = extractSkillsFromText(text);
+        const extractedExperience = extractExperienceFromText(text);
+
+        egresado.profile.cvFileName = profileCopy;
+        egresado.profile.cvOriginalName = req.file.originalname;
+        egresado.profile.techSkills = mergeUnique(egresado.profile.techSkills, extractedSkills.techSkills);
+        egresado.profile.softSkills = mergeUnique(egresado.profile.softSkills, extractedSkills.softSkills);
+        if (extractedExperience.entries.length > 0) {
+          egresado.profile.experiences = extractedExperience.entries.map((e, i) => ({ id: `exp-${Date.now()}-${i}`, ...e }));
+          egresado.profile.yearsOfExperience = extractedExperience.yearsOfExperience;
+        }
+      } catch (err) {
+        // Si algo falla al poblar el perfil, no rompemos la postulación.
+        console.error("No se pudo autocompletar el perfil desde el CV de la postulación:", err.message);
+      }
+    }
+
+    // El match se calcula con el perfil ya actualizado (si se pobló arriba).
     const match = computeMatch(job, egresado?.profile);
 
     const application = {

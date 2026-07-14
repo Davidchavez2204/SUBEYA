@@ -343,6 +343,17 @@ export default function EgresadoDashboard() {
     loadApplications();
   }, []);
 
+  // Auto-actualización: refresca en silencio las postulaciones (estados) y las
+  // ofertas (% de match) cada 15s, sin recargar la página ni mostrar spinners.
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.hidden) return; // no refrescar si la pestaña no está visible
+      api.myApplications().then((d) => setApplications(d.applications)).catch(() => {});
+      api.listJobs().then((d) => setJobs(d.jobs)).catch(() => {});
+    }, 15000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     setTechSkills(profile?.techSkills || []);
     setSoftSkills(profile?.softSkills || []);
@@ -386,7 +397,12 @@ export default function EgresadoDashboard() {
       toast({ title: "¡Postulación enviada!", description: "La empresa ya puede ver tu % de match y tu CV." });
       setSelectedJob(null);
       setCvFile(null);
-      await loadApplications();
+      // Refrescamos el usuario porque, si era su primera postulación con CV, el
+      // backend guardó ese CV en su perfil y detectó sus habilidades.
+      await refreshUser();
+      await Promise.all([loadApplications(), loadJobs()]);
+      // Lo llevamos a "Mis postulaciones" para que vea su postulación recién creada.
+      setActiveTab("postulaciones");
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "No se pudo postular", variant: "destructive" });
     } finally {
@@ -485,7 +501,14 @@ export default function EgresadoDashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-white/10 sticky top-0 z-40 bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-extrabold tracking-tighter text-gradient">SUBEYA</span>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="text-xl font-extrabold tracking-tighter text-gradient cursor-pointer bg-transparent border-0 p-0"
+            aria-label="Ir al inicio del panel"
+          >
+            SUBEYA
+          </button>
           <div className="flex items-center gap-4">
             <div className="text-sm text-right hidden sm:block">
               <div className="font-semibold">{user?.name}</div>
@@ -533,9 +556,9 @@ export default function EgresadoDashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-8">
-            <TabsTrigger value="ofertas" data-testid="tab-ofertas">Ofertas laborales</TabsTrigger>
-            <TabsTrigger value="postulaciones" data-testid="tab-postulaciones">Mis postulaciones</TabsTrigger>
             <TabsTrigger value="perfil" data-testid="tab-perfil">Mi perfil</TabsTrigger>
+            <TabsTrigger value="postulaciones" data-testid="tab-postulaciones">Mis postulaciones</TabsTrigger>
+            <TabsTrigger value="ofertas" data-testid="tab-ofertas">Ofertas laborales</TabsTrigger>
           </TabsList>
 
           <TabsContent value="ofertas">
@@ -879,46 +902,63 @@ export default function EgresadoDashboard() {
                 </div>
               ) : (
                 <div className="border-t border-white/10 pt-4 space-y-3">
-                  <Label className="block">Postular con tu CV</Label>
+                  {profile?.cvFileName ? (
+                    <>
+                      <Label className="block">Postular con tu CV</Label>
+                      <button
+                        type="button"
+                        onClick={() => setUseSavedCv(true)}
+                        data-testid="option-use-saved-cv"
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${useSavedCv ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20"}`}
+                      >
+                        <FileText size={16} className="text-primary shrink-0" />
+                        <span className="text-sm">
+                          Usar el CV de mi perfil <span className="text-muted-foreground">({profile.cvOriginalName})</span>
+                        </span>
+                        {useSavedCv && <CheckCircle2 size={16} className="text-primary ml-auto shrink-0" />}
+                      </button>
 
-                  {profile?.cvFileName && (
-                    <button
-                      type="button"
-                      onClick={() => setUseSavedCv(true)}
-                      data-testid="option-use-saved-cv"
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${useSavedCv ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20"}`}
-                    >
-                      <FileText size={16} className="text-primary shrink-0" />
-                      <span className="text-sm">
-                        Usar el CV de mi perfil <span className="text-muted-foreground">({profile.cvOriginalName})</span>
-                      </span>
-                      {useSavedCv && <CheckCircle2 size={16} className="text-primary ml-auto shrink-0" />}
-                    </button>
-                  )}
+                      <button
+                        type="button"
+                        onClick={() => setUseSavedCv(false)}
+                        data-testid="option-use-new-cv"
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${!useSavedCv ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20"}`}
+                      >
+                        <Upload size={16} className="text-primary shrink-0" />
+                        <span className="text-sm">Subir un CV distinto para esta postulación</span>
+                        {!useSavedCv && <CheckCircle2 size={16} className="text-primary ml-auto shrink-0" />}
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setUseSavedCv(false)}
-                    data-testid="option-use-new-cv"
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${!useSavedCv ? "border-primary/60 bg-primary/10" : "border-white/10 hover:border-white/20"}`}
-                  >
-                    <Upload size={16} className="text-primary shrink-0" />
-                    <span className="text-sm">Subir un CV distinto para esta postulación</span>
-                    {!useSavedCv && <CheckCircle2 size={16} className="text-primary ml-auto shrink-0" />}
-                  </button>
-
-                  {!useSavedCv && (
-                    <label className="flex items-center gap-2 glass px-4 py-3 rounded-xl cursor-pointer hover:bg-white/10 transition-colors text-sm">
-                      <Upload size={16} className="text-primary shrink-0" />
-                      {cvFile ? cvFile.name : "Selecciona tu archivo de CV (PDF o Word)"}
-                      <input
-                        type="file"
-                        accept=".pdf,.docx"
-                        className="hidden"
-                        data-testid="input-cv-file"
-                        onChange={(e) => setCvFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
+                      {!useSavedCv && (
+                        <label className="flex items-center gap-2 glass px-4 py-3 rounded-xl cursor-pointer hover:bg-white/10 transition-colors text-sm">
+                          <Upload size={16} className="text-primary shrink-0" />
+                          {cvFile ? cvFile.name : "Selecciona tu archivo de CV (PDF o Word)"}
+                          <input
+                            type="file"
+                            accept=".pdf,.docx"
+                            className="hidden"
+                            data-testid="input-cv-file"
+                            onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                          />
+                        </label>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Label className="block">Sube tu CV para postular</Label>
+                      <p className="text-xs text-muted-foreground">Adjunta tu CV en PDF o Word (.docx). Lo guardaremos también en tu perfil y detectaremos tus habilidades automáticamente.</p>
+                      <label className="flex items-center gap-2 glass px-4 py-3 rounded-xl cursor-pointer hover:bg-white/10 transition-colors text-sm">
+                        <Upload size={16} className="text-primary shrink-0" />
+                        {cvFile ? cvFile.name : "Selecciona tu archivo de CV (PDF o Word)"}
+                        <input
+                          type="file"
+                          accept=".pdf,.docx"
+                          className="hidden"
+                          data-testid="input-cv-file"
+                          onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                    </>
                   )}
 
                   <Button

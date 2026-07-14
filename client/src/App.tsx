@@ -365,6 +365,7 @@ function SubeyaLanding() {
   const [loadingPublicJobs, setLoadingPublicJobs] = useState(true);
 
   const openRegister = () => setAuthModal({ open: true, tab: "registro" });
+  const openRegisterAs = (role: RoleOption) => setAuthModal({ open: true, tab: "registro", role });
   const openLogin = () => setAuthModal({ open: true, tab: "ingreso" });
   const closeAuth = () => setAuthModal((s) => ({ ...s, open: false }));
 
@@ -401,7 +402,14 @@ function SubeyaLanding() {
 
       <motion.header style={{ backgroundColor: headerBg, backdropFilter: headerBlur }} className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 transition-all duration-300">
         <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <span className="text-2xl font-extrabold tracking-tighter text-gradient">SUBEYA</span>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="text-2xl font-extrabold tracking-tighter text-gradient cursor-pointer bg-transparent border-0 p-0"
+            aria-label="Ir al inicio"
+          >
+            SUBEYA
+          </button>
 
           <nav className="hidden lg:flex items-center gap-8 text-sm font-medium">
             {navItems.map((item) => (
@@ -438,10 +446,10 @@ function SubeyaLanding() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <Button size="lg" onClick={openRegister} data-testid="button-soy-egresado" className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary text-white font-semibold h-14 px-8 rounded-full shadow-[0_0_30px_rgba(176,58,247,0.4)] hover:shadow-[0_0_40px_rgba(176,58,247,0.6)] transition-all">
+            <Button size="lg" onClick={() => openRegisterAs("egresado")} data-testid="button-soy-egresado" className="w-full sm:w-auto bg-gradient-to-r from-primary to-secondary text-white font-semibold h-14 px-8 rounded-full shadow-[0_0_30px_rgba(176,58,247,0.4)] hover:shadow-[0_0_40px_rgba(176,58,247,0.6)] transition-all">
               Soy egresado, buscar empleo
             </Button>
-            <Button size="lg" variant="outline" onClick={openRegister} data-testid="button-soy-empresa" className="w-full sm:w-auto h-14 px-8 rounded-full glass border-white/20 hover:bg-white/10 transition-all font-semibold">
+            <Button size="lg" variant="outline" onClick={() => openRegisterAs("empresa")} data-testid="button-soy-empresa" className="w-full sm:w-auto h-14 px-8 rounded-full glass border-white/20 hover:bg-white/10 transition-all font-semibold">
               Soy empresa, publicar oferta
             </Button>
           </div>
@@ -547,7 +555,7 @@ function SubeyaLanding() {
           )}
 
           <div className="text-center">
-            <Button size="lg" variant="outline" className="glass border-white/20 font-semibold" onClick={openRegister} data-testid="button-cta-egresado">
+            <Button size="lg" variant="outline" className="glass border-white/20 font-semibold" onClick={() => openRegisterAs("egresado")} data-testid="button-cta-egresado">
               Crear mi perfil de egresado <ArrowRight size={16} className="ml-2" />
             </Button>
           </div>
@@ -570,7 +578,7 @@ function SubeyaLanding() {
               ))}
             </div>
 
-            <Button size="lg" onClick={openRegister} data-testid="button-cta-empresa" className="bg-secondary hover:bg-secondary/80 text-white rounded-full px-8 h-12">
+            <Button size="lg" onClick={() => openRegisterAs("empresa")} data-testid="button-cta-empresa" className="bg-secondary hover:bg-secondary/80 text-white rounded-full px-8 h-12">
               Publicar mi primera oferta
             </Button>
           </div>

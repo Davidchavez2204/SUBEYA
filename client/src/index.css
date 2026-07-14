@@ -252,3 +252,23 @@
     pointer-events: none;
   }
 }
+
+/* Cursor de "mano" para todos los elementos interactivos: botones, enlaces,
+   pestañas (tabs), selects, opciones, y cualquier elemento con rol de botón.
+   Se excluyen los elementos deshabilitados. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"],
+[role="option"],
+[role="menuitem"],
+a[href],
+label[for],
+summary,
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
