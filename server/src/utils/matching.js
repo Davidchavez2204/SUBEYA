@@ -84,12 +84,15 @@ export function suggestCourses(courses, missingTech, missingSoft) {
     if (found) {
       suggestions.push({ skill: gap, ...found });
     } else {
+      // Si la habilidad no está en el catálogo curado, generamos una
+      // recomendación dinámica que lleva a la búsqueda de esa habilidad en
+      // Udemy, para que el egresado siempre tenga por dónde empezar.
       suggestions.push({
         skill: gap,
         id: `search-${normalize(gap).replace(/\s+/g, "-")}`,
-        title: `Curso sugerido: ${gap}`,
-        provider: "Búsqueda recomendada",
-        url: `https://www.coursera.org/search?query=${encodeURIComponent(gap)}`,
+        title: `Cursos de ${gap} en Udemy`,
+        provider: "Udemy",
+        url: `https://www.udemy.com/courses/search/?q=${encodeURIComponent(gap)}`,
         level: "Variable",
       });
     }

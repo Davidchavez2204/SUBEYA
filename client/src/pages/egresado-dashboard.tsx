@@ -181,6 +181,90 @@ function JobCard({ job, onOpen, applied }: { job: Job; onOpen: () => void; appli
   );
 }
 
+function CvOnboarding({
+  file,
+  onFile,
+  extracting,
+  onExtract,
+  onSkip,
+  jobsCount,
+  userName,
+}: {
+  file: File | null;
+  onFile: (f: File | null) => void;
+  extracting: boolean;
+  onExtract: () => void;
+  onSkip: () => void;
+  jobsCount: number;
+  userName?: string;
+}) {
+  return (
+    <div className="max-w-xl mx-auto py-6">
+      <div className="text-center mb-8">
+        <div className="mx-auto mb-5 w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center">
+          <Sparkles size={28} className="text-primary" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-3">
+          ¡Hola{userName ? `, ${userName}` : ""}! Sube tu CV para empezar
+        </h1>
+        <p className="text-muted-foreground">
+          Detectamos automáticamente tus habilidades y experiencia, y calculamos tu % de coincidencia con{" "}
+          {jobsCount > 0 ? `las ${jobsCount} ofertas disponibles` : "las ofertas publicadas"}. Solo necesitas tu CV en PDF o Word.
+        </p>
+      </div>
+
+      <Card className="border-primary/30">
+        <CardContent className="p-6 space-y-4">
+          <label className="flex items-center gap-2 glass px-4 py-4 rounded-xl cursor-pointer hover:bg-white/10 transition-colors text-sm">
+            <Upload size={18} className="text-primary shrink-0" />
+            <span className="truncate">{file ? file.name : "Selecciona tu archivo de CV (PDF o Word)"}</span>
+            <input
+              type="file"
+              accept=".pdf,.docx"
+              className="hidden"
+              data-testid="input-onboarding-cv-file"
+              onChange={(e) => onFile(e.target.files?.[0] || null)}
+            />
+          </label>
+          <Button
+            onClick={onExtract}
+            disabled={!file || extracting}
+            data-testid="button-onboarding-extract"
+            className="w-full h-12 bg-gradient-to-r from-primary to-secondary font-semibold"
+          >
+            {extracting ? "Analizando tu CV..." : "Analizar mi CV y ver mi match"}
+          </Button>
+          <p className="text-[11px] text-center text-muted-foreground">Formatos aceptados: PDF o Word (.docx) · Máximo 5MB</p>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-3 mt-6 text-center">
+        {[
+          { icon: FileText, label: "Subes tu CV" },
+          { icon: Sparkles, label: "Detectamos tus habilidades" },
+          { icon: TrendingUp, label: "Ves tu % de match" },
+        ].map((step, i) => (
+          <div key={i} className="glass rounded-xl p-3 flex flex-col items-center gap-2">
+            <step.icon size={18} className="text-primary" />
+            <span className="text-[11px] text-muted-foreground leading-tight">{step.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="text-center mt-6">
+        <button
+          type="button"
+          onClick={onSkip}
+          data-testid="button-skip-onboarding"
+          className="text-sm text-muted-foreground hover:text-white underline underline-offset-4 transition-colors"
+        >
+          Prefiero completar mi perfil manualmente →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function EgresadoDashboard() {
   const { user, logout, refreshUser } = useAuth();
   const [, setLocation] = useLocation();
@@ -210,6 +294,12 @@ export default function EgresadoDashboard() {
   const [jobSort, setJobSort] = useState<"match" | "recientes">("match");
   const [appToWithdraw, setAppToWithdraw] = useState<Application | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(false);
+
+  // Onboarding: mientras el egresado no tenga un CV cargado (y no haya elegido
+  // completar su perfil a mano), el panel muestra primero la pantalla de subir CV.
+  const hasCv = !!profile?.cvFileName;
+  const showOnboarding = !hasCv && !onboardingSkipped;
 
   const filteredJobs = (() => {
     const q = jobSearch.trim().toLowerCase();
@@ -319,7 +409,7 @@ export default function EgresadoDashboard() {
     }
   };
 
-  const handleExtractCv = async () => {
+  const handleExtractCv = async (fromOnboarding = false) => {
     if (!profileCvFile) return;
     setExtractingCv(true);
     try {
@@ -358,9 +448,15 @@ export default function EgresadoDashboard() {
         }
         toast({
           title: "¡CV analizado!",
-          description: `Detectamos ${parts.join(" y ")}. Revísalo abajo antes de guardar.`,
+          description: `Detectamos ${parts.join(" y ")}. ${fromOnboarding ? "Ya calculamos tu match con las ofertas." : "Revísalo abajo antes de guardar."}`,
         });
       }
+
+      // Recargamos las ofertas para que el % de match refleje las habilidades
+      // recién detectadas. Si venimos del onboarding, llevamos al egresado
+      // directo a ver esas ofertas ya con su match calculado.
+      await loadJobs();
+      if (fromOnboarding) setActiveTab("ofertas");
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : "No se pudo analizar el CV", variant: "destructive" });
     } finally {
@@ -403,10 +499,25 @@ export default function EgresadoDashboard() {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold mb-1">Hola, {user?.name?.split(" ")[0]} 👋</h1>
-          <p className="text-muted-foreground text-sm">Este es el resumen de tu búsqueda laboral en SUBEYA.</p>
-        </div>
+        {showOnboarding ? (
+          <CvOnboarding
+            file={profileCvFile}
+            onFile={setProfileCvFile}
+            extracting={extractingCv}
+            onExtract={() => handleExtractCv(true)}
+            onSkip={() => {
+              setOnboardingSkipped(true);
+              setActiveTab("perfil");
+            }}
+            jobsCount={jobs.length}
+            userName={user?.name?.split(" ")[0]}
+          />
+        ) : (
+          <>
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold mb-1">Hola, {user?.name?.split(" ")[0]} 👋</h1>
+              <p className="text-muted-foreground text-sm">Este es el resumen de tu búsqueda laboral en SUBEYA.</p>
+            </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <StatCard icon={Briefcase} label="Ofertas disponibles" value={jobs.length} accent="text-[#3CC6E8]" />
@@ -587,7 +698,7 @@ export default function EgresadoDashboard() {
                     />
                   </label>
                   <Button
-                    onClick={handleExtractCv}
+                    onClick={() => handleExtractCv()}
                     disabled={!profileCvFile || extractingCv}
                     data-testid="button-extract-cv"
                     className="bg-gradient-to-r from-primary to-secondary shrink-0"
@@ -686,7 +797,8 @@ export default function EgresadoDashboard() {
             </Card>
           </TabsContent>
         </Tabs>
-
+          </>
+        )}
       </main>
 
       <Dialog open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJob(null)}>
