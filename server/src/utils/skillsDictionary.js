@@ -156,9 +156,13 @@ function findSkillsInText(text, dictionary) {
 
   for (const skill of dictionary) {
     const normalizedSkill = normalize(skill);
+    // Los espacios internos de la habilidad se vuelven "espacios opcionales"
+    // (\s*), de modo que se detecta igual con o sin espacios: "power bi" reconoce
+    // "power bi" y "powerbi"; "google ads" reconoce "googleads"; etc.
+    const escaped = escapeRegex(normalizedSkill).replace(/ /g, "\\s*");
     // Límites de palabra "suaves": funciona bien tanto para palabras sueltas
     // ("react") como para frases ("trabajo en equipo").
-    const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegex(normalizedSkill)}([^a-z0-9]|$)`, "i");
+    const pattern = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
     if (pattern.test(normalizedText)) {
       found.push(skill);
     }

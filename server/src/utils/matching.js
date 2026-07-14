@@ -1,10 +1,32 @@
-// Normaliza un string de habilidad para comparaciones case-insensitive y sin espacios extra.
+// Normaliza un string de habilidad para comparar de forma robusta. Ignora:
+//  - mayúsculas/minúsculas ("GitHub" = "github")
+//  - espacios en cualquier posición ("Git Hub" = "GitHub", "Cap Cut" = "capcut")
+//  - acentos ("comunicación" = "comunicacion")
+// De este modo, dos habilidades escritas de forma distinta pero equivalentes
+// cuentan como la misma al calcular el match.
 function normalize(skill) {
-  return String(skill || "").trim().toLowerCase();
+  return String(skill || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita acentos
+    .toLowerCase()
+    .replace(/\s+/g, ""); // quita todos los espacios
 }
 
-function normalizeList(list) {
-  return Array.from(new Set((list || []).map(normalize).filter(Boolean)));
+// Devuelve la lista sin duplicados (según la clave normalizada), pero conservando
+// el texto original legible del primer elemento de cada grupo, para mostrarlo tal
+// cual en la interfaz (ej. "GitHub" y no "github").
+function uniqueByKey(list) {
+  const seen = new Set();
+  const result = [];
+  for (const item of list || []) {
+    const raw = String(item || "").trim();
+    if (!raw) continue;
+    const key = normalize(raw);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(raw);
+  }
+  return result;
 }
 
 // Años mínimos de experiencia esperados según el seniority de la oferta.
@@ -40,13 +62,17 @@ function experienceFit(job, egresadoProfile) {
  * Si una oferta no pide requisitos de una categoría, esa categoría puntúa 100%.
  */
 export function computeMatch(job, egresadoProfile) {
-  const techRequired = normalizeList(job.techRequirements);
-  const softRequired = normalizeList(job.softRequirements);
-  const techOwned = normalizeList(egresadoProfile?.techSkills);
-  const softOwned = normalizeList(egresadoProfile?.softSkills);
+  // Requisitos de la oferta, conservando el texto original para mostrarlo.
+  const techRequired = uniqueByKey(job.techRequirements);
+  const softRequired = uniqueByKey(job.softRequirements);
 
-  const techMatched = techRequired.filter((s) => techOwned.includes(s));
-  const softMatched = softRequired.filter((s) => softOwned.includes(s));
+  // Habilidades del egresado como conjunto de claves normalizadas, para comparar
+  // sin importar espacios, mayúsculas ni acentos.
+  const techOwnedKeys = new Set((egresadoProfile?.techSkills || []).map(normalize).filter(Boolean));
+  const softOwnedKeys = new Set((egresadoProfile?.softSkills || []).map(normalize).filter(Boolean));
+
+  const techMatched = techRequired.filter((s) => techOwnedKeys.has(normalize(s)));
+  const softMatched = softRequired.filter((s) => softOwnedKeys.has(normalize(s)));
 
   const techScore = techRequired.length ? techMatched.length / techRequired.length : 1;
   const softScore = softRequired.length ? softMatched.length / softRequired.length : 1;
@@ -54,8 +80,8 @@ export function computeMatch(job, egresadoProfile) {
 
   const score = Math.round((techScore * 0.6 + softScore * 0.2 + experienceScore * 0.2) * 100);
 
-  const missingTech = techRequired.filter((s) => !techOwned.includes(s));
-  const missingSoft = softRequired.filter((s) => !softOwned.includes(s));
+  const missingTech = techRequired.filter((s) => !techOwnedKeys.has(normalize(s)));
+  const missingSoft = softRequired.filter((s) => !softOwnedKeys.has(normalize(s)));
 
   return {
     score: Math.max(0, Math.min(100, score)),
