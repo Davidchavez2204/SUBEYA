@@ -768,7 +768,10 @@ export default function EgresadoDashboard() {
                   <Label className="mb-2 block">Sobre mí</Label>
                   <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Cuéntale a las empresas sobre ti" rows={3} data-testid="input-bio" />
                 </div>
-                <TagEditor label="Habilidades técnicas" tags={techSkills} onChange={setTechSkills} placeholder="Ej. React, SQL, Python..." />
+                <div>
+                  <TagEditor label="Habilidades técnicas" tags={techSkills} onChange={setTechSkills} placeholder="Ej. React, SQL (Avanzado)..." />
+                  <p className="text-[11px] text-muted-foreground mt-2">Tip: indica tu nivel entre paréntesis, ej. <span className="text-white/80">"SQL (Intermedio)"</span>, para coincidir mejor con las ofertas.</p>
+                </div>
                 <TagEditor label="Habilidades blandas" tags={softSkills} onChange={setSoftSkills} placeholder="Ej. Trabajo en equipo, Liderazgo..." />
 
                 <div>

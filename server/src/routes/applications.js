@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import { computeMatch, suggestCourses } from "../utils/matching.js";
+import { computeMatch, computeMatchAsync, suggestCourses } from "../utils/matching.js";
 import { uploadCv, uploadsDir, extractTextFromCv } from "../utils/cvStorage.js";
 import { extractSkillsFromText } from "../utils/skillsDictionary.js";
 import { extractExperienceFromText } from "../utils/experienceExtractor.js";
@@ -104,7 +104,7 @@ applicationsRouter.post(
     }
 
     // El match se calcula con el perfil ya actualizado (si se pobló arriba).
-    const match = computeMatch(job, egresado?.profile);
+    const match = await computeMatchAsync(job, egresado?.profile);
 
     const application = {
       id: crypto.randomUUID(),
@@ -131,11 +131,11 @@ applicationsRouter.get("/mine", requireAuth, requireRole("egresado"), async (req
   const egresado = db.data.users.find((u) => u.id === req.user.id);
   const myApplications = db.data.applications.filter((a) => a.egresadoId === req.user.id);
 
-  const result = myApplications.map((app) => {
+  const result = await Promise.all(myApplications.map(async (app) => {
     const job = db.data.jobs.find((j) => j.id === app.jobId);
     const company = db.data.users.find((u) => u.id === job?.companyId);
     const match = job
-      ? computeMatch(job, egresado.profile)
+      ? await computeMatchAsync(job, egresado.profile)
       : {
           score: app.matchScoreAtApply,
           matchedTech: [],
@@ -170,7 +170,7 @@ applicationsRouter.get("/mine", requireAuth, requireRole("egresado"), async (req
       meetsExperience: match.meetsExperience,
       suggestedCourses: courses,
     };
-  });
+  }));
 
   res.json({ applications: result });
 });

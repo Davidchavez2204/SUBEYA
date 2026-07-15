@@ -2,7 +2,7 @@ import { Router } from "express";
 import crypto from "crypto";
 import { db } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import { computeMatch, suggestCourses } from "../utils/matching.js";
+import { computeMatch, computeMatchAsync, suggestCourses } from "../utils/matching.js";
 
 export const jobsRouter = Router();
 
@@ -103,7 +103,7 @@ jobsRouter.get("/:id", async (req, res) => {
       const payload = jwt.verify(header.slice(7), JWT_SECRET);
       const currentUser = db.data.users.find((u) => u.id === payload.id);
       if (currentUser?.role === "egresado") {
-        const match = computeMatch(job, currentUser.profile);
+        const match = await computeMatchAsync(job, currentUser.profile);
         const courses = suggestCourses(db.data.courses, match.missingTech, match.missingSoft);
         return res.json({ job: { ...enriched, ...match, suggestedCourses: courses } });
       }
@@ -191,9 +191,9 @@ jobsRouter.get("/:id/applicants", requireAuth, requireRole("empresa"), async (re
   }
   if (changed) await db.write();
 
-  const applicants = applications.map((app) => {
+  const applicants = await Promise.all(applications.map(async (app) => {
     const egresado = db.data.users.find((u) => u.id === app.egresadoId);
-    const match = computeMatch(job, egresado?.profile);
+    const match = await computeMatchAsync(job, egresado?.profile);
     const courses = suggestCourses(db.data.courses, match.missingTech, match.missingSoft);
     return {
       applicationId: app.id,
@@ -219,7 +219,7 @@ jobsRouter.get("/:id/applicants", requireAuth, requireRole("empresa"), async (re
       meetsExperience: match.meetsExperience,
       suggestedCourses: courses,
     };
-  });
+  }));
 
   applicants.sort((a, b) => b.matchScore - a.matchScore);
   res.json({ job, applicants });

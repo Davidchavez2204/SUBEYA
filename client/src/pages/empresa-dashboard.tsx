@@ -494,7 +494,8 @@ export default function EmpresaDashboard() {
             </div>
             <div>
               <Label className="mb-2 block">Requisitos técnicos</Label>
-              <TagEditor tags={form.techRequirements} onChange={(v) => setForm((f) => ({ ...f, techRequirements: v }))} placeholder="Ej. React, SQL, Python... (Enter para agregar)" />
+              <TagEditor tags={form.techRequirements} onChange={(v) => setForm((f) => ({ ...f, techRequirements: v }))} placeholder="Ej. React, SQL (Avanzado)... (Enter para agregar)" />
+              <p className="text-[11px] text-muted-foreground mt-2">Tip: puedes indicar el nivel entre paréntesis, ej. <span className="text-white/80">"SQL (Avanzado)"</span>. El postulante coincide si su nivel es igual o mayor.</p>
             </div>
             <div>
               <Label className="mb-2 block">Habilidades blandas</Label>
