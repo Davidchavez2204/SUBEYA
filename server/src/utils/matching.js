@@ -75,6 +75,14 @@ const STOPWORDS = new Set([
   "un", "una", "o", "u", "the", "of", "and", "in", "for", "on", "to",
 ]);
 
+// Palabras de marca/fabricante que se ignoran al comparar, de modo que
+// "Adobe Photoshop" = "Photoshop", "Microsoft Excel" = "Excel", "Google Sheets"
+// = "Sheets", etc. Solo se descartan como prefijo/sufijo: el nombre real (la
+// herramienta) es lo que se compara.
+const VENDOR_WORDS = new Set([
+  "adobe", "microsoft", "ms", "google", "office365", "o365",
+]);
+
 // Raíz aproximada: quita plurales y sufijos comunes de forma/derivación para que
 // "fotografía", "fotográfica" y "fotográfico" converjan a la misma raíz.
 function stem(token) {
@@ -91,6 +99,16 @@ function tokenSet(name) {
   const clean = stripAccents(name).toLowerCase().replace(/[^a-z0-9+#]/g, " ");
   const toks = clean.split(/\s+/).filter((t) => t && !STOPWORDS.has(t));
   return Array.from(new Set(toks.map(stem).filter(Boolean)));
+}
+
+// "Clave núcleo": quita palabras vacías y de marca, y une el resto sin espacios.
+// Así "Adobe Photoshop" -> "photoshop", "Microsoft Power Point" -> "powerpoint",
+// "Google Sheets" -> "sheets". Sirve para emparejar la herramienta real aunque
+// venga con el fabricante delante o escrita separada/junta.
+function coreKey(name) {
+  const clean = stripAccents(name).toLowerCase().replace(/[^a-z0-9+#]/g, " ");
+  const toks = clean.split(/\s+/).filter((t) => t && !STOPWORDS.has(t) && !VENDOR_WORDS.has(t));
+  return toks.join("");
 }
 
 function levenshtein(a, b) {
@@ -130,6 +148,10 @@ function tokensEqual(a, b) {
 export function namesMatch(a, b) {
   const ka = normNoSpace(a), kb = normNoSpace(b);
   if (ka && ka === kb) return true; // exacto (GitHub == Git Hub, PowerBI == Power BI)
+
+  // Núcleo sin marca ni espacios (Adobe Photoshop == Photoshop, MS Excel == Excel).
+  const ca = coreKey(a), cb = coreKey(b);
+  if (ca && ca === cb) return true;
 
   const ta = tokenSet(a), tb = tokenSet(b);
   if (!ta.length || !tb.length) return false;
