@@ -7,6 +7,17 @@ import { profileRouter } from "./routes/profile.js";
 import { jobsRouter } from "./routes/jobs.js";
 import { applicationsRouter } from "./routes/applications.js";
 
+// Red de seguridad: evita que un error no capturado en una sola petición
+// (ej. una promesa rechazada en un handler async) tumbe todo el servidor. En
+// Node moderno, una unhandledRejection sin listener termina el proceso; aquí lo
+// registramos y seguimos sirviendo al resto de usuarios.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 const ALLOWED_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";

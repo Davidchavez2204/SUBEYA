@@ -7,16 +7,19 @@ import { rateLimit } from "../middleware/rateLimit.js";
 
 export const authRouter = Router();
 
-// Limita intentos de inicio de sesión y registro por IP para mitigar fuerza
-// bruta. Valores holgados para no molestar en un uso normal (feria).
+// Limita intentos de login/registro por IP para mitigar fuerza bruta.
+// IMPORTANTE: en una feria muchos usuarios comparten la MISMA IP pública (wifi/
+// NAT), por eso los límites son altos para no bloquear a gente legítima. Se
+// pueden ajustar sin tocar código con LOGIN_RATE_MAX / REGISTER_RATE_MAX
+// (usa un número muy alto, ej. 100000, para desactivarlos de hecho).
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: Number(process.env.LOGIN_RATE_MAX) || 200,
   message: "Demasiados intentos de inicio de sesión. Espera unos minutos e inténtalo de nuevo.",
 });
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 30,
+  max: Number(process.env.REGISTER_RATE_MAX) || 500,
   message: "Demasiadas cuentas creadas desde esta red. Espera un momento e inténtalo de nuevo.",
 });
 
